@@ -5,6 +5,8 @@ import Sidebar from '@/components/sidebar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Activity, Clock, User, CheckCircle, XCircle, Search, Calendar, MoreHorizontal, Plus, Table as TableIcon, Filter, ArrowUpDown, Users, DollarSign, Tag, Calendar as CalendarIcon } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
@@ -290,25 +292,35 @@ export default function ActivityPage() {
                           <input type="checkbox" className="rounded border-gray-300" />
                         </TableHead>
                         <TableHead className="font-semibold text-gray-900">Name</TableHead>
-                        <TableHead className="font-semibold text-gray-900 flex items-center space-x-1">
-                          <Users className="h-4 w-4" />
-                          <span>Client / Company</span>
+                        <TableHead className="font-semibold text-gray-900">
+                          <div className="flex items-center space-x-1">
+                            <Users className="h-4 w-4" />
+                            <span>Client / Company</span>
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-gray-900 flex items-center space-x-1">
-                          <CheckCircle className="h-4 w-4" />
-                          <span>Status</span>
+                        <TableHead className="font-semibold text-gray-900">
+                          <div className="flex items-center space-x-1">
+                            <CheckCircle className="h-4 w-4" />
+                            <span>Status</span>
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-gray-900 flex items-center space-x-1">
-                          <CalendarIcon className="h-4 w-4" />
-                          <span>Timeline</span>
+                        <TableHead className="font-semibold text-gray-900">
+                          <div className="flex items-center space-x-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span>Timeline</span>
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-gray-900 flex items-center space-x-1">
-                          <Tag className="h-4 w-4" />
-                          <span>Category</span>
+                        <TableHead className="font-semibold text-gray-900">
+                          <div className="flex items-center space-x-1">
+                            <Tag className="h-4 w-4" />
+                            <span>Category</span>
+                          </div>
                         </TableHead>
-                        <TableHead className="font-semibold text-gray-900 flex items-center space-x-1">
-                          <DollarSign className="h-4 w-4" />
-                          <span>Budget</span>
+                        <TableHead className="font-semibold text-gray-900">
+                          <div className="flex items-center space-x-1">
+                            <DollarSign className="h-4 w-4" />
+                            <span>Budget</span>
+                          </div>
                         </TableHead>
                       </TableRow>
                     </TableHeader>
