@@ -10,11 +10,26 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseKey) {
+      const missingVars = []
+      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
+      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Missing required environment variables: ${missingVars.join(', ')}` 
+        },
+        { status: 500 }
+      )
+    }
+
     const { id } = await params
     const body = await request.json()
     const { name, description, status } = body
 
-    const supabase = createSupabaseClient(supabaseUrl!, supabaseKey!, {
+    const supabase = createSupabaseClient(supabaseUrl, supabaseKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
@@ -40,9 +55,24 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseKey) {
+      const missingVars = []
+      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
+      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Missing required environment variables: ${missingVars.join(', ')}` 
+        },
+        { status: 500 }
+      )
+    }
+
     const { id } = await params
 
-    const supabase = createSupabaseClient(supabaseUrl!, supabaseKey!, {
+    const supabase = createSupabaseClient(supabaseUrl, supabaseKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 

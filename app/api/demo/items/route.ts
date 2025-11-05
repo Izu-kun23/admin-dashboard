@@ -7,9 +7,24 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 // GET - Fetch all items
 export async function GET() {
   try {
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseKey) {
+      const missingVars = []
+      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
+      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Missing required environment variables: ${missingVars.join(', ')}` 
+        },
+        { status: 500 }
+      )
+    }
+
     const supabase = createSupabaseClient(
-      supabaseUrl!,
-      supabaseKey!,
+      supabaseUrl,
+      supabaseKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -42,9 +57,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     }
 
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseKey) {
+      const missingVars = []
+      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
+      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Missing required environment variables: ${missingVars.join(', ')}` 
+        },
+        { status: 500 }
+      )
+    }
+
     const supabase = createSupabaseClient(
-      supabaseUrl!,
-      supabaseKey!,
+      supabaseUrl,
+      supabaseKey,
       {
         auth: {
           autoRefreshToken: false,

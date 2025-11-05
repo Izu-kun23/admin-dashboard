@@ -11,12 +11,27 @@ export const revalidate = 0
 // GET - Fetch all admins
 export async function GET() {
   try {
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseKey) {
+      const missingVars = []
+      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
+      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Missing required environment variables: ${missingVars.join(', ')}` 
+        },
+        { status: 500 }
+      )
+    }
+
     console.log('🔑 Using Supabase key:', supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'NOT SET')
     console.log('🔑 Is service role?', supabaseKey?.includes('service_role'))
     
     const supabase = createSupabaseClient(
-      supabaseUrl!,
-      supabaseKey!,
+      supabaseUrl,
+      supabaseKey,
       {
         auth: {
           autoRefreshToken: false,
