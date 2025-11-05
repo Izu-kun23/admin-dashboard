@@ -50,7 +50,6 @@ export default function DashboardPage() {
   const [formData, setFormData] = useState({ name: '', description: '', status: 'active' })
   const [adminFormData, setAdminFormData] = useState({ name: '', email: '', password: '', role: 'admin' })
   const router = useRouter()
-  const supabase = createClient()
 
   // Dashboard metrics state
   const [dashboardMetrics, setDashboardMetrics] = useState({
@@ -82,47 +81,53 @@ export default function DashboardPage() {
     fetchQuizSubmissions()
 
     // Only subscribe to realtime if not in demo session
-    const isDemoSession = document.cookie.includes('demo_session=active')
+    const isDemoSession = typeof window !== 'undefined' && document.cookie.includes('demo_session=active')
     
-    if (!isDemoSession) {
-      // Subscribe to real-time updates for items
-      const itemsChannel = supabase
-        .channel('items-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'items'
-          },
-          () => {
-            console.log('🔄 Items changed, refetching...')
-            fetchItems()
-          }
-        )
-        .subscribe()
+    if (!isDemoSession && typeof window !== 'undefined') {
+      try {
+        const supabase = createClient()
+        
+        // Subscribe to real-time updates for items
+        const itemsChannel = supabase
+          .channel('items-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'items'
+            },
+            () => {
+              console.log('🔄 Items changed, refetching...')
+              fetchItems()
+            }
+          )
+          .subscribe()
 
-      // Subscribe to real-time updates for admins
-      const adminsChannel = supabase
-        .channel('admins-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'admins'
-          },
-          () => {
-            console.log('🔄 Admins changed, refetching...')
-            fetchAdmins()
-          }
-        )
-        .subscribe()
+        // Subscribe to real-time updates for admins
+        const adminsChannel = supabase
+          .channel('admins-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'admins'
+            },
+            () => {
+              console.log('🔄 Admins changed, refetching...')
+              fetchAdmins()
+            }
+          )
+          .subscribe()
 
-      // Cleanup subscriptions on unmount
-      return () => {
-        supabase.removeChannel(itemsChannel)
-        supabase.removeChannel(adminsChannel)
+        // Cleanup subscriptions on unmount
+        return () => {
+          supabase.removeChannel(itemsChannel)
+          supabase.removeChannel(adminsChannel)
+        }
+      } catch (error) {
+        console.error('Error setting up realtime subscriptions:', error)
       }
     }
   }, [])
@@ -179,6 +184,11 @@ export default function DashboardPage() {
         }
       } else {
         // Use Supabase directly for authenticated users
+        if (typeof window === 'undefined') {
+          return
+        }
+        
+        const supabase = createClient()
         const { data, error } = await supabase
           .from('items')
           .select('*')
@@ -503,7 +513,14 @@ export default function DashboardPage() {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    if (typeof window !== 'undefined') {
+      try {
+        const supabase = createClient()
+        await supabase.auth.signOut()
+      } catch (error) {
+        console.error('Error signing out:', error)
+      }
+    }
     router.push('/login')
     router.refresh()
   }

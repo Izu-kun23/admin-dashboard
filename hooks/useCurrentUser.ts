@@ -12,11 +12,17 @@ interface User {
 export function useCurrentUser() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
+        // Only run on client side
+        if (typeof window === 'undefined') {
+          setLoading(false)
+          return
+        }
+        
+        const supabase = createClient()
         console.log('🔍 [useCurrentUser] Fetching current user data...')
         const { data: { user: authUser } } = await supabase.auth.getUser()
         

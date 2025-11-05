@@ -27,7 +27,6 @@ interface Admin {
 
 export default function AccessPage() {
   const { user, getCurrentUserId, isAuthenticated } = useCurrentUser()
-  const supabase = createClient()
   const [admins, setAdmins] = useState<Admin[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -158,6 +157,11 @@ export default function AccessPage() {
         
       } else {
         // Use Supabase directly for authenticated users
+        if (typeof window === 'undefined') {
+          throw new Error('Cannot delete admin during SSR')
+        }
+        
+        const supabase = createClient()
         const { error } = await supabase
           .from('admins')
           .delete()

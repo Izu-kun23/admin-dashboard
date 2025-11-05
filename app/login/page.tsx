@@ -17,15 +17,21 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   // Check for access denied error from middleware
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('error') === 'access_denied') {
       setError('Access denied. You are not authorized to access the admin panel.')
       // Clear the session since user is not authorized
-      supabase.auth.signOut()
+      try {
+        const supabase = createClient()
+        supabase.auth.signOut()
+      } catch (error) {
+        console.error('Error signing out:', error)
+      }
     }
   }, [])
 
@@ -57,6 +63,11 @@ export default function LoginPage() {
       }
 
       // For other emails, try Supabase auth as normal
+      if (typeof window === 'undefined') {
+        throw new Error('Login can only be performed in the browser')
+      }
+      
+      const supabase = createClient()
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
