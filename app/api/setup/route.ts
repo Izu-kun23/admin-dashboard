@@ -1,103 +1,19 @@
-import { NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(request: Request) {
+export const revalidate = 0
+
+export async function POST(request: NextRequest) {
   try {
-    const { email, password, name } = await request.json()
-    console.log('🔨 Creating admin:', { email, name })
-
-    if (!email || !password || !name) {
-      console.error('❌ Missing required fields')
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    // Validate environment variables
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      const missingVars = []
-      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
-      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
-      
-      return NextResponse.json(
-        { error: `Missing required environment variables: ${missingVars.join(', ')}` },
-        { status: 500 }
-      )
-    }
-
-    // Use service role to create user (this bypasses RLS)
-    const supabaseAdmin = createSupabaseClient(
-      supabaseUrl,
-      supabaseKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
-    // Check if user already exists
-    const { data: existingUser, error: fetchError } = await supabaseAdmin.auth.admin.listUsers()
-    const user = existingUser.users.find(u => u.email === email)
-
-    let userId: string
-
-    if (user) {
-      // User already exists
-      console.log('User already exists:', user.id)
-      userId = user.id
-    } else {
-      // Create new user in auth
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      })
-
-      if (authError) {
-        console.error('Error creating user:', authError)
-        return NextResponse.json({ error: authError.message }, { status: 400 })
-      }
-
-      userId = authData.user.id
-      console.log('New user created:', userId)
-    }
-
-    // Add user to admins table
-    console.log('📝 Upserting admin to database with user_id:', userId)
-    const { data: adminData, error: adminError } = await supabaseAdmin
-      .from('admins')
-      .upsert({
-        user_id: userId,
-        email,
-        name,
-        password,
-        role: 'admin',
-      }, {
-        onConflict: 'email'
-      })
-      .select()
-      .single()
-
-    if (adminError) {
-      console.error('❌ Error adding to admins table:', adminError)
-      // Only try to delete the user if we just created it
-      if (!user) {
-        await supabaseAdmin.auth.admin.deleteUser(userId)
-      }
-      return NextResponse.json({ error: adminError.message }, { status: 400 })
-    }
-
-    console.log('✅ Admin added to database successfully:', adminData)
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Admin created successfully',
-      data: adminData 
-    }, { status: 201 })
+    // Return dummy setup response
+    return NextResponse.json({
+      success: true,
+      message: 'Setup completed successfully',
+    })
   } catch (error: any) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('❌ Error in POST /api/setup:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

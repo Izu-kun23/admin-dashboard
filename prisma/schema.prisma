@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum KitType {
+  LAUNCH
+  GROWTH
+}
+
+enum Status {
+  NOT_STARTED
+  IN_PROGRESS
+  WAITING_ON_CLIENT
+  DONE
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskType {
+  UPLOAD_FILE
+  SEND_INFO
+  PROVIDE_DETAILS
+  REVIEW
+  OTHER
+}
+
+model OnboardingAnswer {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  answers     Json // Stores complete onboarding form data
+  completedAt DateTime @default(now()) @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  client Client?
+
+  @@index([userId])
+  @@map("onboarding_answers")
+}
+
+model Client {
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  name                String?
+  email               String
+  plan                KitType
+  onboardingAnswersId String?  @unique @map("onboarding_answers_id")
+  nextFromUs          String?  @map("next_from_us") @db.Text
+  nextFromYou         String?  @map("next_from_you") @db.Text
+  currentDayOf14      Int?     @map("current_day_of_14")
+  onboardingPercent   Int      @default(0) @map("onboarding_percent")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  onboardingAnswer OnboardingAnswer?  @relation(fields: [onboardingAnswersId], references: [id], onDelete: SetNull)
+  phaseStates      ClientPhaseState[]
+  tasks            Task[]
+
+  @@unique([userId, plan])
+  @@index([userId])
+  @@index([email])
+  @@index([plan])
+  @@map("clients")
+}
+
+model ClientPhaseState {
+  id          String    @id @default(uuid())
+  clientId    String    @map("client_id")
+  phaseId     String    @map("phase_id") // PHASE_1, PHASE_2, PHASE_3, PHASE_4
+  status      Status    @default(NOT_STARTED)
+  checklist   Json      @default("{}") // { "label": true/false }
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relationships
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, phaseId])
+  @@index([clientId])
+  @@index([phaseId])
+  @@index([status])
+  @@map("client_phase_state")
+}
+
+model QuizSubmission {
+  id             String   @id @default(uuid())
+  fullName       String   @map("full_name")
+  email          String
+  phoneNumber    String?  @map("phone_number")
+  brandName      String   @map("brand_name")
+  logoStatus     String   @map("logo_status")
+  brandGoals     Json     @default("[]") @map("brand_goals") // Array stored as JSON in MySQL
+  onlinePresence String   @map("online_presence")
+  audience       Json     @default("[]") @map("audience") // Array stored as JSON in MySQL
+  brandStyle     String   @map("brand_style")
+  timeline       String
+  preferredKit   KitType? @map("preferred_kit")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@map("quiz_submissions")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id") // Optional: for future auth system integration
+  email     String   @unique
+  name      String
+  password  String?  // Optional: if you want to store hashed passwords
+  role      String   @default("admin")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([email])
+  @@map("admins")
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  clientId    String     @map("client_id")
+  title       String     @db.Text
+  description String?    @db.Text
+  type        TaskType   @default(OTHER)
+  status      TaskStatus @default(PENDING)
+  dueDate     DateTime?  @map("due_date")
+  completedAt DateTime?  @map("completed_at")
+  attachments Json?      @default("[]") // Array of file URLs/names
+  metadata    Json?      @default("{}") // Additional task-specific data
+  createdBy   String?    @map("created_by") // Admin ID who created the task
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  // Relationships
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([status])
+  @@index([type])
+  @@index([dueDate])
+  @@map("tasks")
+}

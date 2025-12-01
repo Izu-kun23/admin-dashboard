@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { DUMMY_ADMINS } from '@/lib/dummy-data'
 
 interface User {
   name: string
@@ -22,46 +22,36 @@ export function useCurrentUser() {
           return
         }
         
-        const supabase = createClient()
-        console.log('🔍 [useCurrentUser] Fetching current user data...')
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        
-        if (authUser) {
-          console.log('✅ [useCurrentUser] Auth user found:', {
-            id: authUser.id,
-            email: authUser.email,
-            metadata: authUser.user_metadata
-          })
-          
-          // Try to get admin data from admins table
-          const { data: adminData, error: adminError } = await supabase
-            .from('admins')
-            .select('name, email, user_id')
-            .eq('user_id', authUser.id)
-            .single()
+        // Check for admin session cookie
+        const getCookie = (name: string) => {
+          const value = `; ${document.cookie}`
+          const parts = value.split(`; ${name}=`)
+          if (parts.length === 2) return parts.pop()?.split(';').shift()
+          return null
+        }
 
-          if (adminData && !adminError) {
-            console.log('✅ [useCurrentUser] Admin user data fetched from admins table:', {
-              name: adminData.name,
-              email: adminData.email,
-              userId: adminData.user_id
-            })
-            setUser({
-              name: adminData.name,
-              email: adminData.email,
-              id: adminData.user_id
-            })
-          } else {
-            console.log('❌ [useCurrentUser] No admin data found in admins table - user is not authorized:', adminError)
-            // User is not an admin - deny access
-            setUser(null)
-          }
+        const sessionCookie = getCookie('admin_session')
+        console.log('🔍 [useCurrentUser] Checking session cookie...', sessionCookie)
+
+        if (sessionCookie && sessionCookie === 'authenticated') {
+          // Session exists, return dummy admin user
+          const dummyAdmin = DUMMY_ADMINS[0]
+          console.log('✅ [useCurrentUser] Session found, returning dummy admin:', {
+            name: dummyAdmin.name,
+            email: dummyAdmin.email,
+            id: dummyAdmin.userId
+          })
+          setUser({
+            name: dummyAdmin.name,
+            email: dummyAdmin.email,
+            id: dummyAdmin.userId
+          })
         } else {
-          console.log('❌ [useCurrentUser] No authenticated user found')
+          console.log('❌ [useCurrentUser] No session found')
           setUser(null)
         }
       } catch (error) {
-        console.error('❌ [useCurrentUser] Error fetching user data:', error)
+        console.error('❌ [useCurrentUser] Error checking session:', error)
         setUser(null)
       } finally {
         setLoading(false)

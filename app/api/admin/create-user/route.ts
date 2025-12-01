@@ -1,101 +1,102 @@
-import { createClient } from '@/utils/supabase/server'
-import { NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcrypt'
 
-export async function POST(request: Request) {
+export const revalidate = 0
+
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const body = await request.json()
+    const { email, name, password, role = 'admin' } = body
 
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check if current user is an admin
-    const { data: adminCheck } = await supabase
-      .from('admins')
-      .select('id')
-      .eq('user_id', currentUser.id)
-      .single()
-
-    if (!adminCheck) {
-      return NextResponse.json({ error: 'Only admins can create users' }, { status: 403 })
-    }
-
-    const { email, password, name, role } = await request.json()
-
-    if (!email || !password || !name) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    // Validate environment variables
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      const missingVars = []
-      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
-      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
-      
+    // Validate required fields
+    if (!email || !name) {
       return NextResponse.json(
-        { error: `Missing required environment variables: ${missingVars.join(', ')}` },
-        { status: 500 }
+        { error: 'Email and name are required' },
+        { status: 400 }
       )
     }
 
-    // Use service role to create user (this bypasses RLS)
-    const supabaseAdmin = createSupabaseClient(
-      supabaseUrl,
-      supabaseKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      )
+    }
 
-    // Create user in auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+    // Check if admin with this email already exists
+    const existingAdmin = await prisma.admin.findUnique({
+      where: { email },
     })
 
-    if (authError) {
-      console.error('Error creating user:', authError)
-      return NextResponse.json({ error: authError.message }, { status: 400 })
+    if (existingAdmin) {
+      return NextResponse.json(
+        { error: 'An admin with this email already exists' },
+        { status: 409 }
+      )
     }
 
-    // Add user to admins table
-    const { data: adminData, error: adminError } = await supabaseAdmin
-      .from('admins')
-      .insert({
-        user_id: authData.user.id,
+    // Hash password if provided
+    let hashedPassword: string | null = null
+    if (password) {
+      if (password.length < 8) {
+        return NextResponse.json(
+          { error: 'Password must be at least 8 characters long' },
+          { status: 400 }
+        )
+      }
+      hashedPassword = await bcrypt.hash(password, 10)
+    }
+
+    // Create admin in database
+    const admin = await prisma.admin.create({
+      data: {
         email,
         name,
-        password,
+        password: hashedPassword,
         role: role || 'admin',
-      })
-      .select()
-      .single()
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        // Don't return password
+      },
+    })
 
-    if (adminError) {
-      console.error('Error adding to admins table:', adminError)
-      // Try to delete the created user
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json({ error: adminError.message }, { status: 400 })
+    console.log('✅ Admin created successfully:', admin.email)
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        createdAt: admin.createdAt.toISOString(),
+        updatedAt: admin.updatedAt.toISOString(),
+      },
+      message: 'Admin created successfully',
+    })
+  } catch (error: any) {
+    console.error('❌ Error in POST /api/admin/create-user:', error)
+
+    // Handle Prisma unique constraint errors
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'An admin with this email already exists' },
+        { status: 409 }
+      )
     }
 
-    return NextResponse.json({ success: true, data: adminData }, { status: 201 })
-  } catch (error: any) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
-
-
-
-
-
-

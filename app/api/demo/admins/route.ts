@@ -1,76 +1,64 @@
 import { NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { prisma } from '@/lib/prisma'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-// Disable Next.js caching
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// GET - Fetch all admins
 export async function GET() {
   try {
-    // Validate environment variables
-    if (!supabaseUrl || !supabaseKey) {
-      const missingVars = []
-      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
-      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
-      
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Missing required environment variables: ${missingVars.join(', ')}` 
-        },
-        { status: 500 }
-      )
-    }
+    // Fetch all admins from database
+    const admins = await prisma.admin.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        // Don't return password
+      },
+    })
 
-    console.log('🔑 Using Supabase key:', supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'NOT SET')
-    console.log('🔑 Is service role?', supabaseKey?.includes('service_role'))
-    
-    const supabase = createSupabaseClient(
-      supabaseUrl,
-      supabaseKey,
+    // Transform to match the expected format
+    const formattedAdmins = admins.map(admin => ({
+      id: admin.id,
+      user_id: admin.userId,
+      email: admin.email,
+      name: admin.name,
+      role: admin.role,
+      created_at: admin.createdAt.toISOString(),
+      updated_at: admin.updatedAt.toISOString(),
+    }))
+
+    return NextResponse.json(
+      { 
+        success: true, 
+        data: formattedAdmins, 
+        count: formattedAdmins.length 
+      },
       {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       }
     )
-
-    console.log('📊 Fetching all admins without any filters...')
-    const { data, error, count } = await supabase
-      .from('admins')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-
-    console.log('📦 Fetching admins from database:')
-    console.log('- Total admins fetched:', data?.length || 0)
-    console.log('- Count from Supabase:', count)
-    console.log('- Error:', error)
-    console.log('- Data:', data)
-    
-    if (error) {
-      console.error('❌ Database error:', error)
-      throw error
-    }
-
-    console.log('✅ Returning admins:', data)
-    console.log('📊 Actual admin IDs:', data?.map(a => a.id))
-    
-    // Disable caching to ensure fresh data
-    return NextResponse.json({ success: true, data, count }, { 
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      }
-    })
   } catch (error: any) {
-    console.error('Error fetching admins:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('❌ Error fetching admins:', error)
+    return NextResponse.json(
+      { 
+        success: false,
+        error: error.message || 'Failed to fetch admins',
+        data: [],
+        count: 0
+      }, 
+      { status: 500 }
+    )
   }
 }

@@ -3,67 +3,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BarChart3, Calendar, Clock, Play, Pause, Square, Plus, Video, Zap, Globe, Settings, Sun, Link } from 'lucide-react'
+import { Calendar, Clock, Play, Pause, Square, Plus, Video, Zap, Globe, Settings, Sun, Link } from 'lucide-react'
 
 export default function DashboardSections() {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       {/* Left Column - Analytics and Reminders */}
       <div className="lg:col-span-2 space-y-6">
-        {/* Project Analytics */}
-        <Card className="border border-gray-200 shadow-none">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <BarChart3 className="h-5 w-5 text-[#8359ee]" />
-              <span>Project Analytics</span>
-            </CardTitle>
-            <CardDescription>Weekly project activity overview</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>S</span>
-                <span>M</span>
-                <span>T</span>
-                <span>W</span>
-                <span>T</span>
-                <span>F</span>
-                <span>S</span>
-              </div>
-              <div className="flex items-end justify-between h-32">
-                <div className="flex flex-col items-center">
-                  <div className="w-8 bg-gray-200 rounded-t mb-2 h-16"></div>
-                  <span className="text-xs text-gray-500">45%</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-8 bg-[#8359ee] rounded-t mb-2 h-20"></div>
-                  <span className="text-xs text-gray-500">62%</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-8 bg-[#8359ee] rounded-t mb-2 h-24"></div>
-                  <span className="text-xs text-gray-500">68%</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-8 bg-[#8359ee] rounded-t mb-2 h-28"></div>
-                  <span className="text-xs text-gray-500">74%</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-8 bg-gray-200 rounded-t mb-2 h-12"></div>
-                  <span className="text-xs text-gray-500">38%</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-8 bg-gray-200 rounded-t mb-2 h-8"></div>
-                  <span className="text-xs text-gray-500">28%</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-8 bg-gray-200 rounded-t mb-2 h-6"></div>
-                  <span className="text-xs text-gray-500">22%</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Reminders */}
         <Card className="border border-gray-200 shadow-none">
           <CardHeader>

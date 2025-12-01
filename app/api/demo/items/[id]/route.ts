@@ -1,91 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+export const revalidate = 0
 
-// PUT - Update item
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    // Validate environment variables
-    if (!supabaseUrl || !supabaseKey) {
-      const missingVars = []
-      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
-      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
-      
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Missing required environment variables: ${missingVars.join(', ')}` 
-        },
-        { status: 500 }
-      )
-    }
-
-    const { id } = await params
-    const body = await request.json()
-    const { name, description, status } = body
-
-    const supabase = createSupabaseClient(supabaseUrl, supabaseKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    })
-
-    const { data, error } = await supabase
-      .from('items')
-      .update({ name, description, status })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json({ success: true, data }, { status: 200 })
-  } catch (error: any) {
-    console.error('Error updating item:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-}
-
-// DELETE - Delete item
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Validate environment variables
-    if (!supabaseUrl || !supabaseKey) {
-      const missingVars = []
-      if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL')
-      if (!supabaseKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY')
-      
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Missing required environment variables: ${missingVars.join(', ')}` 
-        },
-        { status: 500 }
-      )
-    }
-
     const { id } = await params
-
-    const supabase = createSupabaseClient(supabaseUrl, supabaseKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
+    
+    // Return success (dummy delete)
+    return NextResponse.json({
+      success: true,
+      message: 'Item deleted successfully',
     })
-
-    const { error } = await supabase
-      .from('items')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
-
-    return NextResponse.json({ success: true }, { status: 200 })
   } catch (error: any) {
-    console.error('Error deleting item:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('❌ Error in DELETE /api/demo/items/[id]:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+    
+    // Return dummy updated item
+    return NextResponse.json({
+      success: true,
+      data: {
+        id,
+        ...body,
+      },
+    })
+  } catch (error: any) {
+    console.error('❌ Error in PATCH /api/demo/items/[id]:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

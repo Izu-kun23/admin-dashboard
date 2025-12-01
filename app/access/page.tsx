@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Sidebar from '@/components/sidebar'
-import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,8 +15,8 @@ import { Shield, Plus, Edit, Trash2, Mail, User, Calendar, CheckCircle2Icon, Ale
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 interface Admin {
-  id: number
-  user_id: string
+  id: string
+  user_id?: string | null
   email: string
   name: string
   role: string
@@ -33,7 +32,7 @@ export default function AccessPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [adminToDelete, setAdminToDelete] = useState<{ id: number; email: string } | null>(null)
+  const [adminToDelete, setAdminToDelete] = useState<{ id: string; email: string } | null>(null)
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -124,50 +123,33 @@ export default function AccessPage() {
     if (!adminToDelete) return
 
     try {
+      setIsDeleting(true)
       console.log('🗑️ Deleting admin:', adminToDelete)
 
-      const demoSession = document.cookie.includes('demo_session=active')
+      // Use API route for deletion
+      const response = await fetch(`/api/demo/admins/${adminToDelete.id}`, {
+        method: 'DELETE',
+      })
       
-      if (demoSession) {
-        // For demo session, use API route
-        const response = await fetch(`/api/demo/admins/${adminToDelete.id}`, {
-          method: 'DELETE',
-        })
-        
-        console.log('📦 Delete response status:', response.status)
-        
-        let result
-        const text = await response.text()
-        console.log('📦 Delete response text:', text)
-        
-        try {
-          result = JSON.parse(text)
-        } catch (e) {
-          // If not JSON, use the text
-          if (response.ok && !text) {
-            result = { success: true }
-          } else {
-            throw new Error(text || 'Failed to delete admin')
-          }
+      console.log('📦 Delete response status:', response.status)
+      
+      let result
+      const text = await response.text()
+      console.log('📦 Delete response text:', text)
+      
+      try {
+        result = JSON.parse(text)
+      } catch (e) {
+        // If not JSON, use the text
+        if (response.ok && !text) {
+          result = { success: true }
+        } else {
+          throw new Error(text || 'Failed to delete admin')
         }
-        
-        if (!response.ok) {
-          throw new Error(result.error || text || 'Failed to delete admin')
-        }
-        
-      } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          throw new Error('Cannot delete admin during SSR')
-        }
-        
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('admins')
-          .delete()
-          .eq('id', adminToDelete.id)
-
-        if (error) throw error
+      }
+      
+      if (!response.ok) {
+        throw new Error(result.error || text || 'Failed to delete admin')
       }
 
       console.log('✅ Admin deleted successfully')
@@ -178,6 +160,8 @@ export default function AccessPage() {
     } catch (error: any) {
       console.error('❌ Error deleting admin:', error)
       showAlert('error', `Failed to delete admin: ${error.message}`)
+    } finally {
+      setIsDeleting(false)
     }
   }
 

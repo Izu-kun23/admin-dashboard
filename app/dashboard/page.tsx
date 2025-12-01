@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { LogOut, Plus, Edit, Trash2, ArrowRight, Users, Package, CheckCircle2Icon, AlertCircleIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -20,7 +19,7 @@ import Header from '@/components/header'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 interface Item {
-  id: number
+  id: number | string
   name: string
   description: string
   status: string
@@ -28,8 +27,8 @@ interface Item {
 }
 
 interface Admin {
-  id: number
-  user_id: string
+  id: number | string
+  user_id?: string
   email: string
   name: string
   role: string
@@ -44,7 +43,7 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [adminToDelete, setAdminToDelete] = useState<{ id: number; email: string } | null>(null)
+  const [adminToDelete, setAdminToDelete] = useState<{ id: number | string; email: string } | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [formData, setFormData] = useState({ name: '', description: '', status: 'active' })
@@ -79,57 +78,6 @@ export default function DashboardPage() {
     fetchItems()
     fetchAdmins()
     fetchQuizSubmissions()
-
-    // Only subscribe to realtime if not in demo session
-    const isDemoSession = typeof window !== 'undefined' && document.cookie.includes('demo_session=active')
-    
-    if (!isDemoSession && typeof window !== 'undefined') {
-      try {
-        const supabase = createClient()
-        
-        // Subscribe to real-time updates for items
-        const itemsChannel = supabase
-          .channel('items-changes')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'items'
-            },
-            () => {
-              console.log('🔄 Items changed, refetching...')
-              fetchItems()
-            }
-          )
-          .subscribe()
-
-        // Subscribe to real-time updates for admins
-        const adminsChannel = supabase
-          .channel('admins-changes')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'admins'
-            },
-            () => {
-              console.log('🔄 Admins changed, refetching...')
-              fetchAdmins()
-            }
-          )
-          .subscribe()
-
-        // Cleanup subscriptions on unmount
-        return () => {
-          supabase.removeChannel(itemsChannel)
-          supabase.removeChannel(adminsChannel)
-        }
-      } catch (error) {
-        console.error('Error setting up realtime subscriptions:', error)
-      }
-    }
   }, [])
 
   // Update dashboard metrics when data changes
@@ -153,49 +101,15 @@ export default function DashboardPage() {
     }
 
     console.log('📊 Dashboard metrics calculated:', finalMetrics)
-    console.log('📊 Quiz submissions count:', quizSubmissions.length)
-
     setDashboardMetrics(finalMetrics)
   }, [items, admins, quizSubmissions])
 
-  // Log when user ID becomes available
-  useEffect(() => {
-    if (user?.id) {
-      console.log('🎯 [Dashboard] User ID is now available:', user.id)
-      console.log('🎯 [Dashboard] Current user data:', {
-        name: user.name,
-        email: user.email,
-        id: user.id
-      })
-    }
-  }, [user])
-
   const fetchItems = async () => {
     try {
-      // Check if demo session is active
-      const demoSession = typeof window !== 'undefined' && document.cookie.includes('demo_session=active')
-      
-      if (demoSession) {
-        // Use API route for demo user
-        const response = await fetch('/api/demo/items')
-        const result = await response.json()
-        if (result.success) {
-          setItems(result.data || [])
-        }
-      } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          return
-        }
-        
-        const supabase = createClient()
-        const { data, error } = await supabase
-          .from('items')
-          .select('*')
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-        setItems(data || [])
+      const response = await fetch('/api/demo/items')
+      const result = await response.json()
+      if (result.success) {
+        setItems(result.data || [])
       }
     } catch (error) {
       console.error('Error fetching items:', error)
@@ -207,49 +121,20 @@ export default function DashboardPage() {
   const fetchAdmins = async () => {
     try {
       console.log('🔍 Fetching admins...')
-      
-      // Check if demo session is active
-      const demoSession = typeof window !== 'undefined' && document.cookie.includes('demo_session=active')
-      console.log('🔐 Demo session active:', demoSession)
-      
-      if (demoSession) {
-        // Use API route for demo user with cache busting
-        console.log('📡 Using demo API route...')
-        const response = await fetch('/api/demo/admins', {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-store',
-          }
-        })
-        const result = await response.json()
-        console.log('📦 Demo API response:', result)
-        
-        if (result.success) {
-          console.log('✅ Admins fetched successfully:', result.data)
-          setAdmins(result.data || [])
-        } else {
-          console.error('❌ Failed to fetch admins from demo API:', result.error)
+      const response = await fetch('/api/demo/admins', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-store',
         }
+      })
+      const result = await response.json()
+      console.log('📦 Demo API response:', result)
+      
+      if (result.success) {
+        console.log('✅ Admins fetched successfully:', result.data)
+        setAdmins(result.data || [])
       } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          return
-        }
-        
-        const supabase = createClient()
-        console.log('📡 Using Supabase directly...')
-        const { data, error } = await supabase
-          .from('admins')
-          .select('*')
-          .order('created_at', { ascending: false })
-
-        if (error) {
-          console.error('❌ Supabase error:', error)
-          throw error
-        }
-        
-        console.log('✅ Admins fetched from Supabase:', data)
-        setAdmins(data || [])
+        console.error('❌ Failed to fetch admins from demo API:', result.error)
       }
     } catch (error) {
       console.error('❌ Error fetching admins:', error)
@@ -259,43 +144,23 @@ export default function DashboardPage() {
   const fetchQuizSubmissions = async () => {
     try {
       console.log('🔍 Fetching quiz submissions for dashboard...')
+      const response = await fetch('/api/quiz-submissions', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-store',
+        }
+      })
+      const result = await response.json()
       
-      // Check if demo session is active
-      const demoSession = typeof window !== 'undefined' && document.cookie.includes('demo_session=active')
-      
-      if (demoSession) {
-        // For demo, create some sample data
-        const sampleSubmissions = [
-          { id: '1', full_name: 'John Doe', email: 'john@example.com', created_at: new Date().toISOString() },
-          { id: '2', full_name: 'Jane Smith', email: 'jane@example.com', created_at: new Date(Date.now() - 3600000).toISOString() },
-          { id: '3', full_name: 'Bob Johnson', email: 'bob@example.com', created_at: new Date(Date.now() - 7200000).toISOString() }
-        ]
-        setQuizSubmissions(sampleSubmissions)
-        console.log('✅ Demo quiz submissions set:', sampleSubmissions.length)
+      if (result.success) {
+        console.log('✅ Quiz submissions fetched successfully:', result.count || 0, 'submissions')
+        setQuizSubmissions(result.data || [])
       } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          return
-        }
-        
-        const supabase = createClient()
-        const { data, error } = await supabase
-          .from('quiz_submissions')
-          .select('id, full_name, email, created_at')
-          .order('created_at', { ascending: false })
-
-        if (error) {
-          console.error('❌ Error fetching quiz submissions:', error)
-          // Set empty array on error
-          setQuizSubmissions([])
-          return
-        }
-        
-        console.log('✅ Quiz submissions fetched from Supabase:', data?.length || 0, 'records')
-        setQuizSubmissions(data || [])
+        console.error('❌ Failed to fetch quiz submissions:', result.error)
+        setQuizSubmissions([])
       }
-    } catch (error) {
-      console.error('❌ Error fetching quiz submissions:', error)
+    } catch (error: any) {
+      console.error('❌ Exception fetching quiz submissions:', error)
       setQuizSubmissions([])
     }
   }
@@ -303,17 +168,11 @@ export default function DashboardPage() {
   const handleCreateAdmin = async () => {
     try {
       console.log('🔨 Creating admin with data:', adminFormData)
-      console.log('🔨 Current user ID:', getCurrentUserId())
-      
-      const adminDataWithCreator = {
-        ...adminFormData,
-        created_by: getCurrentUserId() // Add creator tracking
-      }
       
       const response = await fetch('/api/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adminDataWithCreator),
+        body: JSON.stringify(adminFormData),
       })
 
       const result = await response.json()
@@ -355,48 +214,28 @@ export default function DashboardPage() {
     try {
       console.log('🗑️ Deleting admin:', adminToDelete)
 
-      const demoSession = document.cookie.includes('demo_session=active')
+      const response = await fetch(`/api/demo/admins/${adminToDelete.id}`, {
+        method: 'DELETE',
+      })
       
-      if (demoSession) {
-        // For demo session, use API route
-        const response = await fetch(`/api/demo/admins/${adminToDelete.id}`, {
-          method: 'DELETE',
-        })
-        
-        console.log('📦 Delete response status:', response.status)
-        
-        let result
-        const text = await response.text()
-        console.log('📦 Delete response text:', text)
-        
-        try {
-          result = JSON.parse(text)
-        } catch (e) {
-          // If not JSON, use the text
-          if (response.ok && !text) {
-            result = { success: true }
-          } else {
-            throw new Error(text || 'Failed to delete admin')
-          }
+      console.log('📦 Delete response status:', response.status)
+      
+      let result
+      const text = await response.text()
+      console.log('📦 Delete response text:', text)
+      
+      try {
+        result = JSON.parse(text)
+      } catch (e) {
+        if (response.ok && !text) {
+          result = { success: true }
+        } else {
+          throw new Error(text || 'Failed to delete admin')
         }
-        
-        if (!response.ok) {
-          throw new Error(result.error || text || 'Failed to delete admin')
-        }
-        
-      } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          throw new Error('Cannot delete admin during SSR')
-        }
-        
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('admins')
-          .delete()
-          .eq('id', adminToDelete.id)
-
-        if (error) throw error
+      }
+      
+      if (!response.ok) {
+        throw new Error(result.error || text || 'Failed to delete admin')
       }
 
       console.log('✅ Admin deleted successfully')
@@ -418,42 +257,22 @@ export default function DashboardPage() {
   const handleCreate = async () => {
     try {
       console.log('🔨 Creating item with data:', formData)
-      console.log('🔨 Current user ID:', getCurrentUserId())
       
-      const itemDataWithCreator = {
-        ...formData,
-        created_by: getCurrentUserId() // Add creator tracking
-      }
-      
-      const demoSession = document.cookie.includes('demo_session=active')
-      
-      if (demoSession) {
-        // Use API route for demo user
-        const response = await fetch('/api/demo/items', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(itemDataWithCreator),
-        })
-        const result = await response.json()
-        if (!result.success) throw new Error(result.error)
-      } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          throw new Error('Cannot create item during SSR')
-        }
-        
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('items')
-          .insert([itemDataWithCreator])
-        if (error) throw error
-      }
+      const response = await fetch('/api/demo/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
       
       setIsModalOpen(false)
       setFormData({ name: '', description: '', status: 'active' })
       fetchItems()
+      showAlert('success', 'Item created successfully!')
     } catch (error) {
       console.error('Error creating item:', error)
+      showAlert('error', 'Failed to create item')
     }
   }
 
@@ -462,77 +281,41 @@ export default function DashboardPage() {
 
     try {
       console.log('🔨 Updating item with data:', formData)
-      console.log('🔨 Current user ID:', getCurrentUserId())
       
-      const itemDataWithUpdater = {
-        ...formData,
-        updated_by: getCurrentUserId() // Add updater tracking
-      }
-      
-      const demoSession = document.cookie.includes('demo_session=active')
-      
-      if (demoSession) {
-        // Use API route for demo user
-        const response = await fetch(`/api/demo/items/${editingItem.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(itemDataWithUpdater),
-        })
-        const result = await response.json()
-        if (!result.success) throw new Error(result.error)
-      } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          throw new Error('Cannot update item during SSR')
-        }
-        
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('items')
-          .update(itemDataWithUpdater)
-          .eq('id', editingItem.id)
-        if (error) throw error
-      }
+      const response = await fetch(`/api/demo/items/${editingItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
       
       setIsModalOpen(false)
       setEditingItem(null)
       setFormData({ name: '', description: '', status: 'active' })
       fetchItems()
+      showAlert('success', 'Item updated successfully!')
     } catch (error) {
       console.error('Error updating item:', error)
+      showAlert('error', 'Failed to update item')
     }
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
     if (!confirm('Are you sure you want to delete this item?')) return
 
     try {
-      const demoSession = document.cookie.includes('demo_session=active')
-      
-      if (demoSession) {
-        // Use API route for demo user
-        const response = await fetch(`/api/demo/items/${id}`, {
-          method: 'DELETE',
-        })
-        const result = await response.json()
-        if (!result.success) throw new Error(result.error)
-      } else {
-        // Use Supabase directly for authenticated users
-        if (typeof window === 'undefined') {
-          throw new Error('Cannot delete item during SSR')
-        }
-        
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('items')
-          .delete()
-          .eq('id', id)
-        if (error) throw error
-      }
+      const response = await fetch(`/api/demo/items/${id}`, {
+        method: 'DELETE',
+      })
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error)
       
       fetchItems()
+      showAlert('success', 'Item deleted successfully!')
     } catch (error) {
       console.error('Error deleting item:', error)
+      showAlert('error', 'Failed to delete item')
     }
   }
 
@@ -543,13 +326,9 @@ export default function DashboardPage() {
   }
 
   const handleLogout = async () => {
+    // Clear session cookie
     if (typeof window !== 'undefined') {
-      try {
-        const supabase = createClient()
-        await supabase.auth.signOut()
-      } catch (error) {
-        console.error('Error signing out:', error)
-      }
+      document.cookie = 'admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;'
     }
     router.push('/login')
     router.refresh()
@@ -586,10 +365,10 @@ export default function DashboardPage() {
           )}
           
           {/* Page Title */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">
-              Plan, prioritize, and accomplish your tasks with ease.
+          <div className="mb-8">
+            <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+            <p className="text-xs text-gray-500 mt-1">
+              Overview of your system
             </p>
           </div>
 
@@ -601,61 +380,64 @@ export default function DashboardPage() {
           />
 
           {/* Additional Dashboard Sections */}
-          <div className="mt-8">
+          <div className="mt-6">
             <DashboardSections />
           </div>
 
           {/* Admins Section */}
           <div className="mt-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold text-foreground">Admin Management</h2>
-              <Button onClick={() => setIsAdminModalOpen(true)} className="flex items-center space-x-2">
-                <Plus className="w-4 h-4" />
-                <span>Add New Admin</span>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Admin Management</h2>
+              <Button onClick={() => setIsAdminModalOpen(true)} size="sm" className="text-xs h-8">
+                <Plus className="w-3 h-3 mr-1.5" />
+                <span>Add Admin</span>
               </Button>
             </div>
 
             {/* Admins List */}
             {admins.length === 0 ? (
-              <Card className="border border-gray-200 shadow-none">
-                <CardContent className="text-center py-12">
-                  <p className="text-muted-foreground text-lg">No admins found. Create your first admin!</p>
+              <Card className="border border-gray-100 shadow-none">
+                <CardContent className="text-center py-10">
+                  <p className="text-gray-500 text-sm">No admins found. Create your first admin.</p>
                 </CardContent>
               </Card>
             ) : (
-              <Card className="border border-gray-200 shadow-none">
-                <CardHeader>
-                  <CardDescription>
-                    Total Admins: <span className="font-semibold">{admins.length}</span>
+              <Card className="border border-gray-100 shadow-none">
+                <CardHeader className="pb-3">
+                  <CardDescription className="text-xs text-gray-500">
+                    Total Admins: <span className="font-medium text-gray-700">{admins.length}</span>
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Actions</TableHead>
+                      <TableRow className="border-b border-gray-100">
+                        <TableHead className="text-xs font-medium text-gray-600 h-10">Name</TableHead>
+                        <TableHead className="text-xs font-medium text-gray-600">Email</TableHead>
+                        <TableHead className="text-xs font-medium text-gray-600">Role</TableHead>
+                        <TableHead className="text-xs font-medium text-gray-600">Created</TableHead>
+                        <TableHead className="text-xs font-medium text-gray-600">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {admins.map((admin) => (
-                        <TableRow key={admin.id}>
-                          <TableCell className="font-medium">{admin.name}</TableCell>
-                          <TableCell>{admin.email}</TableCell>
-                          <TableCell>
-                            <Badge variant="default">{admin.role}</Badge>
+                        <TableRow key={admin.id} className="border-b border-gray-50">
+                          <TableCell className="text-xs font-medium text-gray-900 py-3">{admin.name}</TableCell>
+                          <TableCell className="text-xs text-gray-600 py-3">{admin.email}</TableCell>
+                          <TableCell className="py-3">
+                            <Badge variant="default" className="text-[10px] px-2 py-0.5">{admin.role}</Badge>
                           </TableCell>
-                          <TableCell>{new Date(admin.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
+                          <TableCell className="text-xs text-gray-500 py-3">
+                            {admin.created_at ? new Date(admin.created_at).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                          <TableCell className="py-3">
                             <Button
                               onClick={(e) => handleDeleteAdmin(admin, e)}
                               variant="destructive"
                               size="sm"
+                              className="text-xs h-7 px-2"
                             >
-                              <Trash2 className="w-4 h-4 mr-2" />
+                              <Trash2 className="w-3 h-3 mr-1" />
                               Delete
                             </Button>
                           </TableCell>
