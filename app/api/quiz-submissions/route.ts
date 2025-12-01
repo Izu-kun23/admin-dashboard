@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,7 +15,7 @@ export async function GET() {
     })
 
     // Transform to match the expected format for the activity page
-    const formattedSubmissions = submissions.map(submission => ({
+    const formattedSubmissions = submissions.map((submission: Prisma.QuizSubmissionGetPayload<{}>) => ({
       id: submission.id,
       full_name: submission.fullName,
       email: submission.email,
