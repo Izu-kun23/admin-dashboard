@@ -1,6 +1,6 @@
 # Admin Dashboard
 
-A modern admin dashboard built with Next.js 14, TypeScript, Tailwind CSS, and Supabase.
+A modern admin dashboard built with Next.js 16, TypeScript, Tailwind CSS, and Prisma (MySQL).
 
 ## Features
 
@@ -117,13 +117,34 @@ admin-dashboard/
 
 ## Environment Variables
 
-Make sure your `.env.local` file contains:
+### Local Development
+
+Create a `.env.local` file with:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+DATABASE_URL=mysql://username:password@host:port/database_name?sslaccept=strict
 ```
+
+### Vercel Deployment
+
+**⚠️ IMPORTANT:** You must set the `DATABASE_URL` environment variable in Vercel for the database to work!
+
+1. Go to your Vercel project → **Settings** → **Environment Variables**
+2. Add `DATABASE_URL` with your MySQL connection string
+3. Make sure to add it to **all environments** (Production, Preview, Development)
+4. Redeploy your application
+
+**Example DATABASE_URL format:**
+```
+mysql://username:password@host:3306/database_name?sslaccept=strict
+```
+
+**Database Health Check:**
+After deployment, test your database connection:
+- Visit: `https://your-app.vercel.app/api/health/db`
+- This will show if your database is connected and working
+
+📖 **See `VERCEL_DATABASE_SETUP.md` for detailed setup instructions.**
 
 ## Technologies Used
 
