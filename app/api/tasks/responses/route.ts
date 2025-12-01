@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, TaskType, TaskStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -130,6 +130,64 @@ export async function GET(request: NextRequest) {
       }
     }>
 
+    type ProcessedTask = {
+      id: string
+      client_id: string
+      client_name: string | null
+      client_email: string | null
+      title: string
+      description: string | null
+      type: TaskType
+      status: TaskStatus
+      due_date: string | null
+      completed_at: string | null
+      created_at: string
+      updated_at: string
+      created_by: string | null
+      responses: Array<{
+        id?: string
+        text: string
+        created_at: string
+        created_by: string
+        attachments?: Array<{
+          name: string
+          url: string
+          uploaded_at?: string
+          size?: number
+          type?: string
+        }>
+      }>
+      attachments: Array<{
+        name: string
+        url: string
+        uploaded_at?: string
+        size?: number
+        type?: string
+      }>
+      metadata: {
+        responses: Array<{
+          id?: string
+          text: string
+          created_at: string
+          created_by: string
+          attachments?: Array<{
+            name: string
+            url: string
+            uploaded_at?: string
+            size?: number
+            type?: string
+          }>
+        }>
+        attachments: Array<{
+          name: string
+          url: string
+          uploaded_at?: string
+          size?: number
+          type?: string
+        }>
+      }
+    }
+
     const [tasks, total] = await Promise.all([
       prisma.task.findMany({
         where,
@@ -153,7 +211,7 @@ export async function GET(request: NextRequest) {
     ])
 
     // Process tasks and filter by has_responses if needed
-    let processedTasks = tasks.map((task: TaskWithClient) => {
+    let processedTasks: ProcessedTask[] = tasks.map((task: TaskWithClient) => {
       const { responses, attachments } = parseTaskMetadata(task.metadata)
 
       return {
@@ -182,7 +240,7 @@ export async function GET(request: NextRequest) {
     // Filter by has_responses if specified
     if (hasResponses !== null) {
       const hasResponsesBool = hasResponses === 'true'
-      processedTasks = processedTasks.filter(task => {
+      processedTasks = processedTasks.filter((task: ProcessedTask) => {
         const hasResp = task.responses && task.responses.length > 0
         return hasResponsesBool ? hasResp : !hasResp
       })
