@@ -36,10 +36,21 @@ function createPrismaClient() {
   }
 }
 
+// For serverless environments (Vercel), we need to ensure a fresh client per invocation
+// but reuse it within the same execution context
 const prisma = global.prisma ?? createPrismaClient()
 
-if (process.env.NODE_ENV !== 'production') {
+// In production/serverless, don't store in global to avoid connection issues
+// In development, reuse the same client
+if (process.env.NODE_ENV === 'development') {
   global.prisma = prisma
+}
+
+// Ensure connection is established before use (important for serverless)
+if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+  prisma.$connect().catch(() => {
+    // Silently fail - connection will be established on first query
+  })
 }
 
 export { prisma }

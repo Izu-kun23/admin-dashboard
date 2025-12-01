@@ -8,6 +8,20 @@ export const revalidate = 0
 
 export async function POST(request: NextRequest) {
   try {
+    // Check DATABASE_URL first (critical for deployment)
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ DATABASE_URL environment variable is not set')
+      return NextResponse.json(
+        { 
+          error: 'Database configuration error',
+          hint: process.env.VERCEL 
+            ? 'Please set DATABASE_URL in Vercel → Settings → Environment Variables'
+            : 'Please set DATABASE_URL in your .env file'
+        },
+        { status: 500 }
+      )
+    }
+
     // Verify Prisma is initialized
     if (!prisma) {
       console.error('❌ Prisma client is not initialized')
@@ -43,6 +57,14 @@ export async function POST(request: NextRequest) {
 
     // Normalize email (trim and lowercase for comparison)
     const normalizedEmail = email.trim().toLowerCase()
+
+    // Ensure database connection is established (important for serverless)
+    try {
+      await prisma.$connect()
+    } catch (connectError: any) {
+      console.error('❌ Database connection error:', connectError.message)
+      // Continue anyway - connection might already be established
+    }
 
     // Fetch admin from database
     const admin = await prisma.admin.findUnique({
@@ -89,15 +111,23 @@ export async function POST(request: NextRequest) {
     // Set session cookie with proper settings for Vercel/production
     const cookieStore = await cookies()
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
+    const isVercel = process.env.VERCEL === '1'
     
-    cookieStore.set('admin_session', 'authenticated', {
+    // For Vercel, always use secure cookies (HTTPS is always used)
+    const cookieOptions: any = {
       httpOnly: true,
-      secure: isProduction, // Use secure in production (HTTPS required)
-      sameSite: 'lax',
+      secure: isProduction || isVercel, // Always secure on Vercel
+      sameSite: 'lax' as const,
       maxAge: 60 * 60 * 24, // 24 hours
       path: '/',
-      // Don't set domain - let it use default (same domain)
-    })
+    }
+    
+    try {
+      cookieStore.set('admin_session', 'authenticated', cookieOptions)
+    } catch (cookieError: any) {
+      console.error('❌ Failed to set cookie:', cookieError.message)
+      // Continue - we'll set it in response headers
+    }
 
     console.log('✅ Session cookie set successfully')
 
