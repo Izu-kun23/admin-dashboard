@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -91,7 +92,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all tasks with responses
-    const tasks = await prisma.task.findMany({
+    type TaskWithClient = Prisma.TaskGetPayload<{
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            plan: true,
+          }
+        }
+      }
+    }>
+
+    const tasks: TaskWithClient[] = await prisma.task.findMany({
       where: taskWhere,
       include: {
         client: {
@@ -128,7 +142,7 @@ export async function GET(request: NextRequest) {
       }>
     }> = []
 
-    tasks.forEach(task => {
+    tasks.forEach((task: TaskWithClient) => {
       const responses = parseTaskMetadata(task.metadata)
       
       responses.forEach(response => {
