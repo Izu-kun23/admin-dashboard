@@ -22,16 +22,19 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const formattedClients = clients.map(client => ({
-      id: client.id,
-      user_id: client.userId,
-      name: client.name,
-      email: client.email,
-      plan: client.plan,
-      current_day_of_14: client.currentDayOf14,
-      onboarding_percent: client.onboardingPercent,
-      created_at: client.createdAt.toISOString(),
-    }))
+    // 🔥 FIX: Add type annotation for "client"
+    const formattedClients = clients.map(
+      (client: typeof clients[number]) => ({
+        id: client.id,
+        user_id: client.userId,
+        name: client.name,
+        email: client.email,
+        plan: client.plan,
+        current_day_of_14: client.currentDayOf14,
+        onboarding_percent: client.onboardingPercent,
+        created_at: client.createdAt.toISOString(),
+      })
+    )
 
     return NextResponse.json({
       success: true,
