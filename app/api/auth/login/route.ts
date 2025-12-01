@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-
-// Hardcoded credentials for temporary use
-const HARDCODED_EMAIL = 'izuchukwuonuoha6@gmail.com'
-const HARDCODED_PASSWORD = '12345678'
+import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcrypt'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,11 +12,7 @@ export async function POST(request: NextRequest) {
 
     console.log('🔐 Login attempt:', { 
       email, 
-      passwordLength: password?.length,
-      receivedEmail: email,
-      expectedEmail: HARDCODED_EMAIL,
-      emailMatch: email === HARDCODED_EMAIL,
-      passwordMatch: password === HARDCODED_PASSWORD
+      passwordLength: password?.length
     })
 
     if (!email || !password) {
@@ -31,18 +25,43 @@ export async function POST(request: NextRequest) {
 
     // Normalize email (trim and lowercase for comparison)
     const normalizedEmail = email.trim().toLowerCase()
-    const normalizedExpectedEmail = HARDCODED_EMAIL.trim().toLowerCase()
 
-    // Check hardcoded credentials (case-insensitive email comparison)
-    if (normalizedEmail !== normalizedExpectedEmail || password !== HARDCODED_PASSWORD) {
-      console.log('❌ Invalid credentials:', {
-        emailMatch: normalizedEmail === normalizedExpectedEmail,
-        passwordMatch: password === HARDCODED_PASSWORD,
-        providedEmail: normalizedEmail,
-        expectedEmail: normalizedExpectedEmail
-      })
+    // Fetch admin from database
+    const admin = await prisma.admin.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        password: true,
+        role: true,
+      },
+    })
+
+    if (!admin) {
+      console.log('❌ Admin not found:', normalizedEmail)
       return NextResponse.json(
         { error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Verify password if stored
+    if (admin.password) {
+      const passwordMatch = await bcrypt.compare(password, admin.password)
+      if (!passwordMatch) {
+        console.log('❌ Invalid password for admin:', normalizedEmail)
+        return NextResponse.json(
+          { error: 'Invalid email or password' },
+          { status: 401 }
+        )
+      }
+    } else {
+      // If no password is stored, we might want to allow login without password
+      // or require password setup. For security, we'll reject login without password.
+      console.log('❌ Admin has no password set:', normalizedEmail)
+      return NextResponse.json(
+        { error: 'Password not configured. Please contact administrator.' },
         { status: 401 }
       )
     }
@@ -64,13 +83,14 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Session cookie set successfully')
 
-    // Return success with admin data
+    // Return success with admin data (excluding password)
     const response = NextResponse.json({
       success: true,
       admin: {
-        email: HARDCODED_EMAIL,
-        name: 'Admin User',
-        role: 'admin',
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
       },
     }, { status: 200 })
 
