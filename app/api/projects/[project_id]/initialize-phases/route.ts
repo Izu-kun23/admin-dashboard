@@ -10,9 +10,11 @@ export async function POST(
   try {
     const { project_id } = await params
     
+    type DummyPhase = typeof DUMMY_PHASES[number]
+    
     // Return dummy phases
     return NextResponse.json({
-      phases: DUMMY_PHASES.map(p => ({
+      phases: DUMMY_PHASES.map((p: DummyPhase) => ({
         ...p,
         project_id: project_id,
       })),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -68,6 +69,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all tasks
+    type TaskWithClient = Prisma.TaskGetPayload<{
+      include: {
+        client: {
+          select: {
+            id: true,
+            email: true,
+          }
+        }
+      }
+    }>
+
     const tasks = await prisma.task.findMany({
       where,
       include: {
@@ -107,7 +119,7 @@ export async function GET(request: NextRequest) {
     let tasksWithoutResponses = 0
     const responseTimes: number[] = [] // in hours
 
-    tasks.forEach(task => {
+    tasks.forEach((task: TaskWithClient) => {
       // Count by status
       tasksByStatus[task.status] = (tasksByStatus[task.status] || 0) + 1
 
@@ -148,7 +160,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate average response time
     const averageResponseTimeHours = responseTimes.length > 0
-      ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
+      ? responseTimes.reduce((sum: number, time: number) => sum + time, 0) / responseTimes.length
       : 0
 
     return NextResponse.json(

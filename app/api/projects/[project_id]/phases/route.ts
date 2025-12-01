@@ -83,9 +83,11 @@ client.phaseStates.forEach((phaseState: typeof client.phaseStates[number]) => {
     // Merge structure with state
     const mergedPhases = mergePhaseStructureWithState(structure, phasesState)
 
+    type MergedPhase = ReturnType<typeof mergePhaseStructureWithState>[number]
+
     // Transform to the format expected by the frontend
-    const phases = mergedPhases.map(phase => {
-      const checklistItems = phase.checklist.map((item, index) => ({
+    const phases = mergedPhases.map((phase: MergedPhase) => {
+      const checklistItems = phase.checklist.map((item: { label: string; is_done: boolean }, index: number) => ({
         id: `${client.id}-${phase.phase_id}-${index}`,
         phase_id: phase.phase_id,
         label: item.label,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -39,6 +40,19 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | null
     const type = searchParams.get('type') as 'UPLOAD_FILE' | 'SEND_INFO' | 'PROVIDE_DETAILS' | 'REVIEW' | 'OTHER' | null
 
+    type TaskWithClient = Prisma.TaskGetPayload<{
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            plan: true,
+          }
+        }
+      }
+    }>
+
     const tasks = await prisma.task.findMany({
       where: {
         ...(clientId && { clientId }),
@@ -60,7 +74,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const formattedTasks = tasks.map(task => ({
+    const formattedTasks = tasks.map((task: TaskWithClient) => ({
       id: task.id,
       client_id: task.clientId,
       title: task.title,

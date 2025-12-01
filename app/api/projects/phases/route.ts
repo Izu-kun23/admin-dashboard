@@ -30,6 +30,44 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform clients to projects
+    type Project = {
+      id: string
+      user_id: string
+      kit_type: 'LAUNCH' | 'GROWTH'
+      current_day_of_14: number | null
+      next_from_us: string | null
+      next_from_you: string | null
+      onboarding_finished: boolean
+      onboarding_percent: number
+      created_at: string
+      updated_at: string
+      email: string | null
+      phases: Array<{
+        id: string
+        project_id: string
+        phase_number: number
+        phase_id: string
+        title: string
+        subtitle: string | null
+        day_range: string
+        status: 'NOT_STARTED' | 'IN_PROGRESS' | 'WAITING_ON_CLIENT' | 'DONE'
+        started_at: string | null
+        completed_at: string | null
+        created_at: string
+        updated_at: string
+        checklist_items: Array<{
+          id: string
+          phase_id: string
+          label: string
+          is_done: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }>
+        phase_links: any[]
+      }>
+    }
+
     const projects = clients.map((client) => {
       const structure = getPhaseStructureForKitType(client.plan)
 
@@ -79,8 +117,10 @@ export async function GET(request: NextRequest) {
 
       const mergedPhases = mergePhaseStructureWithState(structure, phasesState)
 
-      const phases = mergedPhases.map((phase) => {
-        const checklistItems = phase.checklist.map((item, index) => ({
+      type MergedPhase = ReturnType<typeof mergePhaseStructureWithState>[number]
+
+      const phases = mergedPhases.map((phase: MergedPhase) => {
+        const checklistItems = phase.checklist.map((item: { label: string; is_done: boolean }, index: number) => ({
           id: `${client.id}-${phase.phase_id}-${index}`,
           phase_id: phase.phase_id,
           label: item.label,
@@ -129,9 +169,9 @@ export async function GET(request: NextRequest) {
     })
 
     // Filter by status
-    let filteredProjects = projects
+    let filteredProjects: Project[] = projects
     if (status) {
-      filteredProjects = projects.filter((project) => {
+      filteredProjects = projects.filter((project: Project) => {
         return project.phases.some((phase) => phase.status === status)
       })
     }

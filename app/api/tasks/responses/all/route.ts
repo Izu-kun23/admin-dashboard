@@ -142,10 +142,12 @@ export async function GET(request: NextRequest) {
       }>
     }> = []
 
+    type ResponseType = ReturnType<typeof parseTaskMetadata>[number]
+
     tasks.forEach((task: TaskWithClient) => {
       const responses = parseTaskMetadata(task.metadata)
       
-      responses.forEach(response => {
+      responses.forEach((response: ResponseType) => {
         // Apply date filtering to responses
         if (dateFrom || dateTo) {
           const responseDate = new Date(response.created_at)
